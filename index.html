@@ -15,7 +15,7 @@
       background: #1e293b;
       padding: 15px;
       margin: 10px 0;
-      border-radius: 10px;
+      border-radius: 8px;
       cursor: pointer;
     }
 
@@ -27,21 +27,17 @@
     }
 
     button {
-      padding: 8px;
-      background: #3b82f6;
-      border: none;
-      color: white;
-      border-radius: 6px;
+      padding: 6px;
       margin: 3px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      background: #3b82f6;
     }
 
-    .danger {
-      background: #ef4444;
-    }
-
-    .warning {
-      background: #f59e0b;
-    }
+    .danger { background: #ef4444; }
+    .warn { background: #f59e0b; }
+    .block { background: #6b7280; }
   </style>
 </head>
 
@@ -77,6 +73,25 @@ function save() {
   localStorage.setItem("servers", JSON.stringify(servers));
 }
 
+// ===== SMART RESET (simulate daily reset) =====
+function dailyReset() {
+  const lastReset = localStorage.getItem("lastReset");
+  const now = new Date().getDate();
+
+  if (lastReset != now) {
+    servers.forEach(s => {
+      s.users.forEach(u => {
+        u.dailyUsed = 0;
+      });
+    });
+
+    localStorage.setItem("lastReset", now);
+    save();
+  }
+}
+
+dailyReset();
+
 // ===== RENDER SERVERS =====
 function renderServers() {
   document.getElementById("panel").style.display = "none";
@@ -87,7 +102,7 @@ function renderServers() {
   servers.forEach((s, i) => {
     const div = document.createElement("div");
     div.className = "card";
-    div.innerHTML = "🖥 " + s.name + " (" + s.users.length + " users)";
+    div.innerHTML = `🖥 ${s.name} (${s.users.length} users)`;
     div.onclick = () => openServer(i);
     list.appendChild(div);
   });
@@ -115,16 +130,19 @@ function renderUsers() {
 
     let remaining = u.quota - u.used;
 
+    let status = "Active";
+    if (u.used >= u.quota) status = "BLOCKED";
+    else if (u.dailyUsed >= u.dailyLimit) status = "LIMITED";
+
     const div = document.createElement("div");
     div.className = "user";
 
     div.innerHTML = `
-      👤 <b>${u.name}</b><br>
+      👤 <b>${u.name}</b> [${status}] <br>
 
-      📦 Total: ${u.quota} GB<br>
-      📉 Used: ${u.used} GB<br>
-      📊 Remaining: ${remaining} GB<br>
-      ⏱ Daily Limit: ${u.daily} GB<br>
+      📦 Total: ${u.quota}GB<br>
+      📉 Used: ${u.used}GB<br>
+      📊 Daily: ${u.dailyUsed}/${u.dailyLimit}GB<br>
 
       <button onclick="useData(${i})">Use 1GB</button>
       <button class="danger" onclick="deleteUser(${i})">Delete</button>
@@ -144,8 +162,9 @@ function addUser() {
     servers[currentServer].users.push({
       name,
       quota,
-      daily,
-      used: 0
+      dailyLimit: daily,
+      used: 0,
+      dailyUsed: 0
     });
 
     save();
@@ -153,17 +172,25 @@ function addUser() {
   }
 }
 
-// ===== SIMULATE USAGE =====
+// ===== USE DATA (SMART LOGIC) =====
 function useData(i) {
-  let user = servers[currentServer].users[i];
+  let u = servers[currentServer].users[i];
 
-  if (user.used < user.quota) {
-    user.used += 1;
-    save();
-    renderUsers();
-  } else {
-    alert("Quota finished!");
+  if (u.used >= u.quota) {
+    alert("User BLOCKED (Quota finished)");
+    return;
   }
+
+  if (u.dailyUsed >= u.dailyLimit) {
+    alert("Daily limit reached");
+    return;
+  }
+
+  u.used += 1;
+  u.dailyUsed += 1;
+
+  save();
+  renderUsers();
 }
 
 // ===== DELETE USER =====
@@ -175,8 +202,8 @@ function deleteUser(i) {
 
 // ===== BACK =====
 function back() {
-  document.getElementById("serverList").style.display = "block";
   renderServers();
+  document.getElementById("serverList").style.display = "block";
 }
 
 // ===== ADD SERVER =====
