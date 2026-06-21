@@ -19,20 +19,28 @@
       cursor: pointer;
     }
 
-    button {
-      padding: 10px;
-      background: #3b82f6;
-      border: none;
-      color: white;
-      border-radius: 8px;
-      margin: 5px 0;
-    }
-
     .user {
       background: #334155;
       padding: 10px;
-      margin: 5px 0;
+      margin: 8px 0;
       border-radius: 8px;
+    }
+
+    button {
+      padding: 8px;
+      background: #3b82f6;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      margin: 3px;
+    }
+
+    .danger {
+      background: #ef4444;
+    }
+
+    .warning {
+      background: #f59e0b;
     }
   </style>
 </head>
@@ -80,9 +88,7 @@ function renderServers() {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = "🖥 " + s.name + " (" + s.users.length + " users)";
-
     div.onclick = () => openServer(i);
-
     list.appendChild(div);
   });
 }
@@ -106,13 +112,22 @@ function renderUsers() {
   list.innerHTML = "";
 
   servers[currentServer].users.forEach((u, i) => {
+
+    let remaining = u.quota - u.used;
+
     const div = document.createElement("div");
     div.className = "user";
 
     div.innerHTML = `
-      👤 ${u.name} <br>
-      📦 ${u.quota}GB
-      <br><button onclick="deleteUser(${i})">Delete</button>
+      👤 <b>${u.name}</b><br>
+
+      📦 Total: ${u.quota} GB<br>
+      📉 Used: ${u.used} GB<br>
+      📊 Remaining: ${remaining} GB<br>
+      ⏱ Daily Limit: ${u.daily} GB<br>
+
+      <button onclick="useData(${i})">Use 1GB</button>
+      <button class="danger" onclick="deleteUser(${i})">Delete</button>
     `;
 
     list.appendChild(div);
@@ -122,16 +137,32 @@ function renderUsers() {
 // ===== ADD USER =====
 function addUser() {
   const name = prompt("User name:");
-  const quota = prompt("Quota (GB):");
+  const quota = parseInt(prompt("Total quota (GB):"));
+  const daily = parseInt(prompt("Daily limit (GB):"));
 
-  if (name && quota) {
+  if (name && quota && daily) {
     servers[currentServer].users.push({
       name,
-      quota
+      quota,
+      daily,
+      used: 0
     });
 
     save();
     renderUsers();
+  }
+}
+
+// ===== SIMULATE USAGE =====
+function useData(i) {
+  let user = servers[currentServer].users[i];
+
+  if (user.used < user.quota) {
+    user.used += 1;
+    save();
+    renderUsers();
+  } else {
+    alert("Quota finished!");
   }
 }
 
