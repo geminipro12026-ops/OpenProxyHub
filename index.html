@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>OpenProxyHub</title>
+
+  <!-- جلوگیری از cache -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
   <style>
     body {
       background: #0f172a;
@@ -27,17 +33,15 @@
     }
 
     button {
-      padding: 6px;
+      padding: 8px;
       margin: 3px;
       border: none;
       border-radius: 6px;
-      color: white;
       background: #3b82f6;
+      color: white;
     }
 
     .danger { background: #ef4444; }
-    .warn { background: #f59e0b; }
-    .block { background: #6b7280; }
   </style>
 </head>
 
@@ -45,20 +49,12 @@
 
 <h2>OpenProxyHub</h2>
 
-<div id="serverList"></div>
-
-<div id="panel" style="display:none;">
-  <h3 id="serverTitle"></h3>
-
-  <button onclick="addUser()">+ Add User</button>
-  <button onclick="back()">← Back</button>
-
-  <div id="userList"></div>
-</div>
-
-<button onclick="addServer()">+ Add Server</button>
+<div id="app"></div>
 
 <script>
+
+// ===== FORCE FRESH LOAD =====
+const VERSION = Date.now();
 
 // ===== DATA =====
 let servers = JSON.parse(localStorage.getItem("servers")) || [
@@ -73,90 +69,85 @@ function save() {
   localStorage.setItem("servers", JSON.stringify(servers));
 }
 
-// ===== SMART RESET (simulate daily reset) =====
-function dailyReset() {
-  const lastReset = localStorage.getItem("lastReset");
-  const now = new Date().getDate();
+// ===== RENDER =====
+function render() {
+  const app = document.getElementById("app");
 
-  if (lastReset != now) {
-    servers.forEach(s => {
-      s.users.forEach(u => {
-        u.dailyUsed = 0;
-      });
-    });
-
-    localStorage.setItem("lastReset", now);
-    save();
+  if (currentServer === null) {
+    renderServers(app);
+  } else {
+    renderUsers(app);
   }
 }
 
-dailyReset();
-
-// ===== RENDER SERVERS =====
-function renderServers() {
-  document.getElementById("panel").style.display = "none";
-
-  const list = document.getElementById("serverList");
-  list.innerHTML = "";
+// ===== SERVERS =====
+function renderServers(app) {
+  app.innerHTML = `
+    <button onclick="addServer()">+ Add Server</button>
+  `;
 
   servers.forEach((s, i) => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `🖥 ${s.name} (${s.users.length} users)`;
-    div.onclick = () => openServer(i);
-    list.appendChild(div);
+    app.innerHTML += `
+      <div class="card" onclick="openServer(${i})">
+        🖥 ${s.name} (${s.users.length} users)
+      </div>
+    `;
   });
 }
 
-// ===== OPEN SERVER =====
-function openServer(index) {
-  currentServer = index;
-
-  document.getElementById("serverList").style.display = "none";
-  document.getElementById("panel").style.display = "block";
-
-  document.getElementById("serverTitle").innerText =
-    "Server: " + servers[index].name;
-
-  renderUsers();
-}
-
 // ===== USERS =====
-function renderUsers() {
-  const list = document.getElementById("userList");
-  list.innerHTML = "";
+function renderUsers(app) {
+  let s = servers[currentServer];
 
-  servers[currentServer].users.forEach((u, i) => {
+  app.innerHTML = `
+    <h3>${s.name}</h3>
+    <button onclick="back()">← Back</button>
+    <button onclick="addUser()">+ Add User</button>
+  `;
 
-    let remaining = u.quota - u.used;
+  s.users.forEach((u, i) => {
 
     let status = "Active";
     if (u.used >= u.quota) status = "BLOCKED";
     else if (u.dailyUsed >= u.dailyLimit) status = "LIMITED";
 
-    const div = document.createElement("div");
-    div.className = "user";
+    app.innerHTML += `
+      <div class="user">
+        👤 ${u.name} [${status}]<br>
+        📦 ${u.used}/${u.quota} GB<br>
+        📊 Daily: ${u.dailyUsed}/${u.dailyLimit} GB<br>
 
-    div.innerHTML = `
-      👤 <b>${u.name}</b> [${status}] <br>
-
-      📦 Total: ${u.quota}GB<br>
-      📉 Used: ${u.used}GB<br>
-      📊 Daily: ${u.dailyUsed}/${u.dailyLimit}GB<br>
-
-      <button onclick="useData(${i})">Use 1GB</button>
-      <button class="danger" onclick="deleteUser(${i})">Delete</button>
+        <button onclick="useData(${i})">Use 1GB</button>
+        <button class="danger" onclick="deleteUser(${i})">Delete</button>
+      </div>
     `;
-
-    list.appendChild(div);
   });
 }
 
-// ===== ADD USER =====
+// ===== LOGIC =====
+function openServer(i) {
+  currentServer = i;
+  render();
+}
+
+function back() {
+  currentServer = null;
+  render();
+}
+
+function addServer() {
+  let name = prompt("Server name:");
+  if (name) {
+    servers.push({ name, users: [] });
+    save();
+    render();
+  }
+}
+
 function addUser() {
-  const name = prompt("User name:");
-  const quota = parseInt(prompt("Total quota (GB):"));
-  const daily = parseInt(prompt("Daily limit (GB):"));
+  let name = prompt("User name:");
+  let quota = parseInt(prompt("Quota GB:"));
+  let daily = parseInt(prompt("Daily limit GB:"));
 
   if (name && quota && daily) {
     servers[currentServer].users.push({
@@ -168,56 +159,31 @@ function addUser() {
     });
 
     save();
-    renderUsers();
+    render();
   }
 }
 
-// ===== USE DATA (SMART LOGIC) =====
 function useData(i) {
   let u = servers[currentServer].users[i];
 
-  if (u.used >= u.quota) {
-    alert("User BLOCKED (Quota finished)");
-    return;
-  }
+  if (u.used >= u.quota) return alert("BLOCKED");
+  if (u.dailyUsed >= u.dailyLimit) return alert("DAILY LIMIT");
 
-  if (u.dailyUsed >= u.dailyLimit) {
-    alert("Daily limit reached");
-    return;
-  }
-
-  u.used += 1;
-  u.dailyUsed += 1;
+  u.used++;
+  u.dailyUsed++;
 
   save();
-  renderUsers();
+  render();
 }
 
-// ===== DELETE USER =====
 function deleteUser(i) {
   servers[currentServer].users.splice(i, 1);
   save();
-  renderUsers();
-}
-
-// ===== BACK =====
-function back() {
-  renderServers();
-  document.getElementById("serverList").style.display = "block";
-}
-
-// ===== ADD SERVER =====
-function addServer() {
-  const name = prompt("Server name:");
-  if (name) {
-    servers.push({ name, users: [] });
-    save();
-    renderServers();
-  }
+  render();
 }
 
 // START
-renderServers();
+render();
 
 </script>
 
