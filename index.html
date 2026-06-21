@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>OpenProxyHub</title>
+  <style>
+    body {
+      background: #0f172a;
+      color: white;
+      font-family: Arial;
+      padding: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 10px;
+    }
+
+    button {
+      padding: 10px;
+      background: #3b82f6;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>OpenProxyHub</h2>
+
+<div class="card">🇩🇪 Germany - Online</div>
+<div class="card">🇫🇮 Finland - Online</div>
+<div class="card">☁ Cloudflare - Syncing</div>
+
+<button onclick="addServer()">+ Add Server</button>
+
+<script>
+function addServer() {
+  const name = prompt("Server name:");
+  if (name) {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerText = "🆕 " + name + " - Online";
+    document.body.appendChild(div);
+  }
+}
+</script>
+
+</body>
+</html>
