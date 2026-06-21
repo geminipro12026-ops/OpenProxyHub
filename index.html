@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -26,7 +25,14 @@
       border: none;
       color: white;
       border-radius: 8px;
-      margin-top: 10px;
+      margin: 5px 0;
+    }
+
+    .user {
+      background: #334155;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 8px;
     }
   </style>
 </head>
@@ -37,54 +43,124 @@
 
 <div id="serverList"></div>
 
+<div id="panel" style="display:none;">
+  <h3 id="serverTitle"></h3>
+
+  <button onclick="addUser()">+ Add User</button>
+  <button onclick="back()">← Back</button>
+
+  <div id="userList"></div>
+</div>
+
 <button onclick="addServer()">+ Add Server</button>
 
 <script>
-// گرفتن دیتا از حافظه مرورگر
+
+// ===== DATA =====
 let servers = JSON.parse(localStorage.getItem("servers")) || [
-  { name: "Germany", status: "Online" },
-  { name: "Finland", status: "Online" },
-  { name: "Cloudflare", status: "Syncing" }
+  { name: "Germany", users: [] },
+  { name: "Finland", users: [] }
 ];
 
-// ذخیره در مرورگر
-function saveData() {
+let currentServer = null;
+
+// ===== SAVE =====
+function save() {
   localStorage.setItem("servers", JSON.stringify(servers));
 }
 
-// نمایش سرورها
-function render() {
+// ===== RENDER SERVERS =====
+function renderServers() {
+  document.getElementById("panel").style.display = "none";
+
   const list = document.getElementById("serverList");
   list.innerHTML = "";
 
-  servers.forEach((s, index) => {
+  servers.forEach((s, i) => {
     const div = document.createElement("div");
     div.className = "card";
-    div.innerHTML = "🖥 " + s.name + " - " + s.status;
+    div.innerHTML = "🖥 " + s.name + " (" + s.users.length + " users)";
 
-    div.onclick = () => openServer(index);
+    div.onclick = () => openServer(i);
 
     list.appendChild(div);
   });
 }
 
-// اضافه کردن سرور
-function addServer() {
-  const name = prompt("Server name:");
-  if (name) {
-    servers.push({ name, status: "Online" });
-    saveData();
-    render();
+// ===== OPEN SERVER =====
+function openServer(index) {
+  currentServer = index;
+
+  document.getElementById("serverList").style.display = "none";
+  document.getElementById("panel").style.display = "block";
+
+  document.getElementById("serverTitle").innerText =
+    "Server: " + servers[index].name;
+
+  renderUsers();
+}
+
+// ===== USERS =====
+function renderUsers() {
+  const list = document.getElementById("userList");
+  list.innerHTML = "";
+
+  servers[currentServer].users.forEach((u, i) => {
+    const div = document.createElement("div");
+    div.className = "user";
+
+    div.innerHTML = `
+      👤 ${u.name} <br>
+      📦 ${u.quota}GB
+      <br><button onclick="deleteUser(${i})">Delete</button>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+// ===== ADD USER =====
+function addUser() {
+  const name = prompt("User name:");
+  const quota = prompt("Quota (GB):");
+
+  if (name && quota) {
+    servers[currentServer].users.push({
+      name,
+      quota
+    });
+
+    save();
+    renderUsers();
   }
 }
 
-// باز کردن سرور
-function openServer(index) {
-  alert("Server: " + servers[index].name + "\nStatus: " + servers[index].status);
+// ===== DELETE USER =====
+function deleteUser(i) {
+  servers[currentServer].users.splice(i, 1);
+  save();
+  renderUsers();
 }
 
-// شروع
-render();
+// ===== BACK =====
+function back() {
+  document.getElementById("serverList").style.display = "block";
+  renderServers();
+}
+
+// ===== ADD SERVER =====
+function addServer() {
+  const name = prompt("Server name:");
+  if (name) {
+    servers.push({ name, users: [] });
+    save();
+    renderServers();
+  }
+}
+
+// START
+renderServers();
+
 </script>
 
 </body>
