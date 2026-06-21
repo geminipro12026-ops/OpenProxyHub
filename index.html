@@ -36,6 +36,10 @@
       background: #3b82f6;
       color: white;
     }
+
+    .ok { background: #16a34a; }
+    .warn { background: #f59e0b; }
+    .bad { background: #ef4444; }
   </style>
 </head>
 
@@ -47,25 +51,57 @@
 
 <script>
 
-// ===== PLUGINS (HYBRID CORE) =====
+// ===== PLUGIN ENGINE =====
 let plugins = [
   {
     name: "BPB Panel",
     type: "API",
-    status: "connected",
-    users: 0
+    status: "disconnected",
+    users: 0,
+    connect: function() {
+      this.status = "connecting...";
+      render();
+
+      setTimeout(() => {
+        this.status = "connected (mock API)";
+        this.users = 12;
+        render();
+      }, 1000);
+    }
   },
+
   {
     name: "Nahan Panel",
     type: "DB",
-    status: "local",
-    users: 0
+    status: "disconnected",
+    users: 0,
+    connect: function() {
+      this.status = "syncing DB...";
+      render();
+
+      setTimeout(() => {
+        this.status = "connected (mock DB)";
+        this.users = 7;
+        render();
+      }, 1200);
+    }
   },
+
   {
-    name: "Custom Panel",
-    type: "Hybrid",
-    status: "manual",
-    users: 0
+    name: "Custom Hybrid",
+    type: "HYBRID",
+    status: "idle",
+    users: 0,
+    connect: function() {
+      this.status = "hybrid linking...";
+      render();
+
+      setTimeout(() => {
+        this.status = "connected (hybrid mode)";
+        this.users = 3;
+        render();
+      }, 800);
+    }
   }
 ];
 
@@ -76,14 +112,22 @@ function render() {
 
   plugins.forEach((p, i) => {
 
+    let color = "warn";
+    if (p.status.includes("connected")) color = "ok";
+    if (p.status.includes("disconnected")) color = "bad";
+
     app.innerHTML += `
       <div class="card" onclick="openPlugin(${i})">
         🧩 ${p.name}
         <span class="tag">${p.type}</span>
         <br>
-        Status: ${p.status}
+        Status: <b class="${color}">${p.status}</b>
         <br>
         Users: ${p.users}
+        <br>
+        <button onclick="connect(${i}); event.stopPropagation();">
+          Connect
+        </button>
       </div>
     `;
   });
@@ -91,26 +135,36 @@ function render() {
   app.innerHTML += `<button onclick="addPlugin()">+ Add Plugin</button>`;
 }
 
-// ===== OPEN PLUGIN =====
+// ===== CONNECT LAYER =====
+function connect(i) {
+  plugins[i].connect();
+}
+
+// ===== OPEN =====
 function openPlugin(i) {
   alert(
     "Plugin: " + plugins[i].name +
     "\nType: " + plugins[i].type +
-    "\nStatus: " + plugins[i].status
+    "\nStatus: " + plugins[i].status +
+    "\nUsers: " + plugins[i].users
   );
 }
 
 // ===== ADD PLUGIN =====
 function addPlugin() {
   let name = prompt("Plugin name:");
-  let type = prompt("Type (API / DB / Hybrid):");
+  let type = prompt("Type (API / DB / HYBRID):");
 
   if (name && type) {
     plugins.push({
       name,
       type,
-      status: "new",
-      users: 0
+      status: "new (manual)",
+      users: 0,
+      connect: function() {
+        this.status = "manual connected";
+        render();
+      }
     });
 
     render();
