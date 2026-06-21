@@ -4,11 +4,6 @@
   <meta charset="UTF-8">
   <title>OpenProxyHub</title>
 
-  <!-- جلوگیری از cache -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-
   <style>
     body {
       background: #0f172a;
@@ -25,11 +20,12 @@
       cursor: pointer;
     }
 
-    .user {
+    .tag {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
       background: #334155;
-      padding: 10px;
-      margin: 8px 0;
-      border-radius: 8px;
+      margin-left: 5px;
     }
 
     button {
@@ -40,8 +36,6 @@
       background: #3b82f6;
       color: white;
     }
-
-    .danger { background: #ef4444; }
   </style>
 </head>
 
@@ -53,133 +47,74 @@
 
 <script>
 
-// ===== FORCE FRESH LOAD =====
-const VERSION = Date.now();
-
-// ===== DATA =====
-let servers = JSON.parse(localStorage.getItem("servers")) || [
-  { name: "Germany", users: [] },
-  { name: "Finland", users: [] }
+// ===== PLUGINS (HYBRID CORE) =====
+let plugins = [
+  {
+    name: "BPB Panel",
+    type: "API",
+    status: "connected",
+    users: 0
+  },
+  {
+    name: "Nahan Panel",
+    type: "DB",
+    status: "local",
+    users: 0
+  },
+  {
+    name: "Custom Panel",
+    type: "Hybrid",
+    status: "manual",
+    users: 0
+  }
 ];
-
-let currentServer = null;
-
-// ===== SAVE =====
-function save() {
-  localStorage.setItem("servers", JSON.stringify(servers));
-}
 
 // ===== RENDER =====
 function render() {
   const app = document.getElementById("app");
+  app.innerHTML = "";
 
-  if (currentServer === null) {
-    renderServers(app);
-  } else {
-    renderUsers(app);
-  }
-}
+  plugins.forEach((p, i) => {
 
-// ===== SERVERS =====
-function renderServers(app) {
-  app.innerHTML = `
-    <button onclick="addServer()">+ Add Server</button>
-  `;
-
-  servers.forEach((s, i) => {
     app.innerHTML += `
-      <div class="card" onclick="openServer(${i})">
-        🖥 ${s.name} (${s.users.length} users)
+      <div class="card" onclick="openPlugin(${i})">
+        🧩 ${p.name}
+        <span class="tag">${p.type}</span>
+        <br>
+        Status: ${p.status}
+        <br>
+        Users: ${p.users}
       </div>
     `;
   });
+
+  app.innerHTML += `<button onclick="addPlugin()">+ Add Plugin</button>`;
 }
 
-// ===== USERS =====
-function renderUsers(app) {
-  let s = servers[currentServer];
-
-  app.innerHTML = `
-    <h3>${s.name}</h3>
-    <button onclick="back()">← Back</button>
-    <button onclick="addUser()">+ Add User</button>
-  `;
-
-  s.users.forEach((u, i) => {
-
-    let status = "Active";
-    if (u.used >= u.quota) status = "BLOCKED";
-    else if (u.dailyUsed >= u.dailyLimit) status = "LIMITED";
-
-    app.innerHTML += `
-      <div class="user">
-        👤 ${u.name} [${status}]<br>
-        📦 ${u.used}/${u.quota} GB<br>
-        📊 Daily: ${u.dailyUsed}/${u.dailyLimit} GB<br>
-
-        <button onclick="useData(${i})">Use 1GB</button>
-        <button class="danger" onclick="deleteUser(${i})">Delete</button>
-      </div>
-    `;
-  });
+// ===== OPEN PLUGIN =====
+function openPlugin(i) {
+  alert(
+    "Plugin: " + plugins[i].name +
+    "\nType: " + plugins[i].type +
+    "\nStatus: " + plugins[i].status
+  );
 }
 
-// ===== LOGIC =====
-function openServer(i) {
-  currentServer = i;
-  render();
-}
+// ===== ADD PLUGIN =====
+function addPlugin() {
+  let name = prompt("Plugin name:");
+  let type = prompt("Type (API / DB / Hybrid):");
 
-function back() {
-  currentServer = null;
-  render();
-}
-
-function addServer() {
-  let name = prompt("Server name:");
-  if (name) {
-    servers.push({ name, users: [] });
-    save();
-    render();
-  }
-}
-
-function addUser() {
-  let name = prompt("User name:");
-  let quota = parseInt(prompt("Quota GB:"));
-  let daily = parseInt(prompt("Daily limit GB:"));
-
-  if (name && quota && daily) {
-    servers[currentServer].users.push({
+  if (name && type) {
+    plugins.push({
       name,
-      quota,
-      dailyLimit: daily,
-      used: 0,
-      dailyUsed: 0
+      type,
+      status: "new",
+      users: 0
     });
 
-    save();
     render();
   }
-}
-
-function useData(i) {
-  let u = servers[currentServer].users[i];
-
-  if (u.used >= u.quota) return alert("BLOCKED");
-  if (u.dailyUsed >= u.dailyLimit) return alert("DAILY LIMIT");
-
-  u.used++;
-  u.dailyUsed++;
-
-  save();
-  render();
-}
-
-function deleteUser(i) {
-  servers[currentServer].users.splice(i, 1);
-  save();
-  render();
 }
 
 // START
