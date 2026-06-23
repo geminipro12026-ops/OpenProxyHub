@@ -1,5 +1,5 @@
 const API_BASE = "https://openproxyhub-api.openproxyhub.workers.dev";
-const API_KEY = "YOUR_API_KEY_HERE";
+const API_KEY = "oph_v1_7Qx9LmP2aW8Rk5ZtN4HsE1YbUc6VfJ3";
 
 // ===== Helper =====
 async function request(path, method = "GET", body = null) {
