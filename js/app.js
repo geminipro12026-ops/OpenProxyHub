@@ -11,41 +11,76 @@ async function api(path, method = "GET", body = null) {
     body: body ? JSON.stringify(body) : null
   });
 
-  if (!res.ok) {
-    throw new Error(await res.text());
-  }
+  const data = await res.json().catch(() => ({ success: false, error: "Invalid response" }));
 
-  return await res.json();
+  if (!res.ok) throw new Error(data.error || "API error");
+
+  return data;
 }
 
 async function loadUsers() {
   const users = await api("/users");
 
-  const list = users.length
-    ? users.map(u => `<li>${u.username} | ${u.panel} | ${u.server}</li>`).join("")
-    : "<li>هیچ کاربری ثبت نشده است.</li>";
+  const container = document.getElementById("users");
+  container.innerHTML = "";
 
-  document.getElementById("users").innerHTML = list;
+  users.forEach(u => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <b>${u.username}</b><br>
+      Panel: ${u.panel}<br>
+      Server: ${u.server}<br>
+      Quota: ${u.quotaGB} GB<br>
+      Daily: ${u.dailyLimitGB} GB<br><br>
+      <button id="del-${u.id}">Delete</button>
+    `;
+
+    container.appendChild(card);
+
+    document.getElementById(`del-${u.id}`).onclick = async () => {
+      if (!confirm("Delete this user?")) return;
+
+      await api("/deleteUser", "POST", { id: u.id });
+
+      loadUsers();
+    };
+  });
 }
 
 async function addUser() {
-  const user = {
-    username: document.getElementById("username").value,
-    panel: document.getElementById("panel").value,
-    server: document.getElementById("server").value,
-    quotaGB: Number(document.getElementById("quota").value),
-    dailyLimitGB: Number(document.getElementById("daily").value)
-  };
+  const username = document.getElementById("username").value.trim();
+  const panel = document.getElementById("panel").value;
+  const server = document.getElementById("server").value;
+  const quotaGB = Number(document.getElementById("quota").value);
+  const dailyLimitGB = Number(document.getElementById("daily").value);
+  const msg = document.getElementById("msg");
 
-  await api("/addUser", "POST", user);
+  msg.textContent = "";
 
-  document.getElementById("username").value = "";
+  try {
+    await api("/addUser", "POST", {
+      username,
+      panel,
+      server,
+      quotaGB,
+      dailyLimitGB
+    });
 
-  await loadUsers();
+    document.getElementById("username").value = "";
+
+    loadUsers();
+
+  } catch (e) {
+    msg.textContent = e.message;
+  }
 }
 
 document.getElementById("app").innerHTML = `
 <h3>OpenProxyHub Dashboard</h3>
+
+<div id="msg" style="color:red"></div>
 
 <input id="username" placeholder="Username"><br><br>
 
@@ -63,23 +98,15 @@ document.getElementById("app").innerHTML = `
 
 <br><br>
 
-<input id="quota" type="number" value="30">
+<input id="quota" type="number" value="30"> GB<br><br>
 
-GB
-
-<br><br>
-
-<input id="daily" type="number" value="1">
-
-GB / Day
-
-<br><br>
+<input id="daily" type="number" value="1"> GB / Day<br><br>
 
 <button id="addBtn">Add User</button>
 
-<h3>Users</h3>
+<hr>
 
-<ul id="users"></ul>
+<div id="users"></div>
 `;
 
 document.getElementById("addBtn").onclick = addUser;
